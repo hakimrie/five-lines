@@ -38,26 +38,44 @@ class Resting implements FallingState {
   }
 }
 
+class FallStrategy {
+  constructor(private falling: FallingState) {}
+
+  update(tile: Tile, x: number, y: number): void {
+    this.falling = map[y + 1][x].isAir() ? new Falling() : new Resting();
+    this.drop(tile, y, x);
+  }
+
+  private drop(tile: Tile, y: number, x: number) {
+    if (this.falling.isFalling()) {
+      map[y + 1][x] = tile;
+      map[y][x] = new Air();
+    }
+  }
+
+  getFalling() {
+    return this.falling;
+  }
+}
+
 interface Tile {
   isAir(): boolean;
-  isFalling(): boolean;
   isLock1(): boolean;
   isLock2(): boolean;
 
   draw(g: CanvasRenderingContext2D, x: number, y: number): void;
-  isEdible(): boolean;
-  isPushable(): boolean;
   moveHorizontal(dx: number): void;
   moveVertical(dy: number): void;
   canFall(): boolean;
 
   drop(): void;
   rest(): void;
+
+  update(x: number, y: number): void;
 }
 
 class Air implements Tile {
   isAir() { return true; }
-  isFalling() { return false; }
   isLock1() { return false; }
   isLock2() { return false; }
 
@@ -66,8 +84,6 @@ class Air implements Tile {
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
     // Air tiles do not need to be drawn, they are transparent.
   }
-  isEdible(): boolean { return true; }
-  isPushable(): boolean { return false; }
   moveHorizontal(dx: number) {
     moveToTile(playerx + dx, playery);
   }
@@ -79,11 +95,14 @@ class Air implements Tile {
   }
   drop(): void { }
   rest(): void { }
+
+  update(x: number, y: number): void {
+    // Air tiles do not need to be updated.
+  }
 }
 
 class Flux implements Tile {
   isAir() { return false; }
-  isFalling() { return false; }
   isLock1() { return false; }
   isLock2() { return false; }
 
@@ -91,12 +110,6 @@ class Flux implements Tile {
     g.fillStyle = "#ccffcc";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  isEdible(): boolean {
-    return true;
-  }
-  isPushable(): boolean {
-    return false;
-  }
   moveHorizontal(dx: number) {
     moveToTile(playerx + dx, playery);
   }
@@ -108,22 +121,18 @@ class Flux implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Flux tiles do not need to be updated.
+  }
 }
 class Unbreakable implements Tile {
   isAir() { return false; }
-  isFalling() { return false; }
   isLock1() { return false; }
   isLock2() { return false; }
 
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
     g.fillStyle = "#999999";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-  }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
   }
   moveHorizontal(dx: number) {
   }
@@ -133,21 +142,17 @@ class Unbreakable implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Unbreakable tiles do not need to be updated.
+  }
 }
 class Player implements Tile {
   isAir() { return false; }
-  isFalling() { return false; }
   isLock1() { return false; }
   isLock2() { return false; }
 
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
     g.fillStyle = "#ff0000";
-  }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
   }
   moveHorizontal(dx: number) {}
   moveVertical(dy: number) {}
@@ -156,13 +161,18 @@ class Player implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Player tiles do not need to be updated.
+  }
 }
 class Stone implements Tile {
+  private fallStrategy: FallStrategy;
+
   constructor(private falling: FallingState) {
+    this.fallStrategy = new FallStrategy(falling)
   }
 
   isAir() { return false; }
-  isFalling() { return this.falling.isFalling(); }
   isLock1() { return false; }
   isLock2() { return false; }
 
@@ -173,14 +183,8 @@ class Stone implements Tile {
     g.fillStyle = "#0000cc";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return true;
-  }
   moveHorizontal(dx: number) {
-    this.falling.moveHorizontal(this, dx);
+    this.fallStrategy.getFalling().moveHorizontal(this, dx);
   }
   moveVertical(dy: number) {
   }
@@ -193,24 +197,24 @@ class Stone implements Tile {
   rest(): void { 
     this.falling = new Resting();
   }
+  update(x: number, y: number): void {
+    this.fallStrategy.update(this, x, y);
+  }
 }
 class Box implements Tile {
-  constructor(private falling: FallingState) {}
+  private fallStrategy: FallStrategy;
+
+  constructor(private falling: FallingState) {
+    this.fallStrategy = new FallStrategy(falling)
+  }
 
   isAir() { return false; }
-  isFalling() { return this.falling.isFalling(); }
   isLock1() { return false; }
   isLock2() { return false; }
 
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
     g.fillStyle = "#8b4513";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-  }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return !this.falling.isFalling();
   }
   moveHorizontal(dx: number) {
     if (map[playery][playerx + dx + dx].isAir()
@@ -224,8 +228,16 @@ class Box implements Tile {
   canFall(): boolean {
     return true;
   }
-  drop(): void { }
-  rest(): void { }
+  drop(): void { 
+    this.falling = new Falling();
+  }
+  rest(): void { 
+    this.falling = new Resting();
+  }
+
+  update(x: number, y: number): void {
+    this.fallStrategy.update(this, x, y);
+  }
 }
 class Key1 implements Tile {
   isAir() { return false; }
@@ -240,12 +252,6 @@ class Key1 implements Tile {
     g.fillStyle = "#ffcc00";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
-  }
   moveHorizontal(dx: number) {
     removeLock1();
     moveToTile(playerx + dx, playery);
@@ -259,6 +265,9 @@ class Key1 implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Key1 tiles do not need to be updated.
+  }
 }
 class Lock1 implements Tile {
   isAir() { return false; }
@@ -270,12 +279,6 @@ class Lock1 implements Tile {
     g.fillStyle = "#ffcc00";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
-  }
   moveHorizontal(dx: number) {
     removeLock2();
     moveToTile(playerx + dx, playery);
@@ -287,6 +290,9 @@ class Lock1 implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Lock1 tiles do not need to be updated.
+  }
 }
 class Key2 implements Tile {
   isAir() { return false; }
@@ -297,12 +303,6 @@ class Key2 implements Tile {
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
     g.fillStyle = "#00ccff";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-  }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
   }
   moveHorizontal(dx: number) {
     removeLock2();
@@ -317,6 +317,9 @@ class Key2 implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Key2 tiles do not need to be updated.
+  }
 }
 class Lock2 implements Tile {
   isAir() { return false; }
@@ -328,12 +331,6 @@ class Lock2 implements Tile {
     g.fillStyle = "#ffcc00";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  isEdible(): boolean {
-    return false;
-  }
-  isPushable(): boolean {
-    return false;
-  }
   moveHorizontal(dx: number) {
   }
   moveVertical(dy: number) {
@@ -343,6 +340,9 @@ class Lock2 implements Tile {
   }
   drop(): void { }
   rest(): void { }
+  update(x: number, y: number): void {
+    // Lock2 tiles do not need to be updated.
+  }
 }
 
 interface Input {
@@ -441,18 +441,8 @@ function update() {
 function updateMap() {
   for (let y = map.length - 1; y >= 0; y--) {
     for (let x = 0; x < map[y].length; x++) {
-      updateTile(y, x);
+      map[y][x].update(x, y);
     }
-  }
-}
-
-function updateTile(y: number, x: number) {
-  if (map[y][x].canFall() && map[y + 1][x].isAir()) {
-    map[y + 1][x].drop();
-    map[y + 1][x] = map[y][x];
-    map[y][x] = new Air();
-  } else if (map[y][x].isFalling()) {
-    map[y][x].rest();
   }
 }
 
