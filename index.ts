@@ -18,12 +18,18 @@ interface FallingState {
   isFalling(): boolean;
 
   moveHorizontal(tile: Tile, dx: number): void;
+  drop(tile: Tile, x: number, y: number): void;
 }
 
 class Falling implements FallingState {
   isFalling() { return true; }
 
   moveHorizontal(tile: Tile, dx: number): void { }
+  
+  drop(tile: Tile, x: number, y: number): void {
+    map[y + 1][x] = tile;
+    map[y][x] = new Air();
+  }
 }
 
 class Resting implements FallingState {
@@ -36,13 +42,16 @@ class Resting implements FallingState {
         moveToTile(playerx + dx, playery);
       }
   }
+  drop(tile: Tile, x: number, y: number): void {
+    // Resting tiles do not fall.
+  }
 }
 
 class FallStrategy {
   constructor(private falling: FallingState) {}
 
   update(tile: Tile, x: number, y: number): void {
-    this.falling = map[y + 1][x].isAir() ? new Falling() : new Resting();
+    this.falling = map[y + 1][x].getBlockOnTopState();
     this.drop(tile, y, x);
   }
 
@@ -53,18 +62,20 @@ class FallStrategy {
     }
   }
 
-  getFalling() {
-    return this.falling;
+  moveHorizontal(tile: Tile, dx: number) {
+    this.falling.moveHorizontal(tile, dx);
   }
 }
 
 class KeyConfiguration {
   constructor(private color: string, private _1: boolean, private removeStrategy: RemoveStrategy) {}
 
-  getColor () { return this.color }
+  private getColor () { return this.color }
+  setColor(g: CanvasRenderingContext2D) { g.fillStyle = this.color; }
+
   is1() {return this._1}
-  getRemoveStrategy() {
-    return this.removeStrategy
+  removeLock() {
+    remove(this.removeStrategy);
   }
 }
 
@@ -77,6 +88,7 @@ interface Tile {
   moveHorizontal(dx: number): void;
   moveVertical(dy: number): void;
   canFall(): boolean;
+  getBlockOnTopState(): FallingState;
 
   drop(): void;
   rest(): void;
@@ -109,6 +121,9 @@ class Air implements Tile {
   update(x: number, y: number): void {
     // Air tiles do not need to be updated.
   }
+  getBlockOnTopState(): FallingState {
+    return new Falling();
+  }
 }
 
 class Flux implements Tile {
@@ -134,6 +149,9 @@ class Flux implements Tile {
   update(x: number, y: number): void {
     // Flux tiles do not need to be updated.
   }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
+  }
 }
 class Unbreakable implements Tile {
   isAir() { return false; }
@@ -155,6 +173,9 @@ class Unbreakable implements Tile {
   update(x: number, y: number): void {
     // Unbreakable tiles do not need to be updated.
   }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
+  }
 }
 class Player implements Tile {
   isAir() { return false; }
@@ -173,6 +194,9 @@ class Player implements Tile {
   rest(): void { }
   update(x: number, y: number): void {
     // Player tiles do not need to be updated.
+  }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
   }
 }
 class Stone implements Tile {
@@ -194,7 +218,7 @@ class Stone implements Tile {
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   moveHorizontal(dx: number) {
-    this.fallStrategy.getFalling().moveHorizontal(this, dx);
+    this.fallStrategy.moveHorizontal(this, dx);
   }
   moveVertical(dy: number) {
   }
@@ -209,6 +233,9 @@ class Stone implements Tile {
   }
   update(x: number, y: number): void {
     this.fallStrategy.update(this, x, y);
+  }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
   }
 }
 class Box implements Tile {
@@ -227,11 +254,7 @@ class Box implements Tile {
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   moveHorizontal(dx: number) {
-    if (map[playery][playerx + dx + dx].isAir()
-      && !map[playery + 1][playerx + dx].isAir()) {
-      map[playery][playerx + dx + dx] = this;
-      moveToTile(playerx + dx, playery);
-    }
+    this.fallStrategy.moveHorizontal(this, dx);
   }
   moveVertical(dy: number) {
   }
@@ -248,6 +271,10 @@ class Box implements Tile {
   update(x: number, y: number): void {
     this.fallStrategy.update(this, x, y);
   }
+
+  getBlockOnTopState(): FallingState {
+    return new Resting();
+  }
 }
 class Key implements Tile {
   constructor(private keyConf: KeyConfiguration) {
@@ -259,15 +286,15 @@ class Key implements Tile {
   isLock2() { return false; }
 
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
-    g.fillStyle = this.keyConf.getColor();
+    this.keyConf.setColor(g);
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   moveHorizontal(dx: number) {
-    remove(this.keyConf.getRemoveStrategy())
+    this.keyConf.removeLock()
     moveToTile(playerx + dx, playery);
   }
   moveVertical(dy: number) {
-    remove(this.keyConf.getRemoveStrategy())
+    this.keyConf.removeLock()
     moveToTile(playerx, playery + dy);
   }
   canFall(): boolean {
@@ -277,6 +304,9 @@ class Key implements Tile {
   rest(): void { }
   update(x: number, y: number): void {
     // Key1 tiles do not need to be updated.
+  }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
   }
 }
 class LockX implements Tile {
@@ -289,11 +319,11 @@ class LockX implements Tile {
   isLock2() { return !this.keyConf.is1(); }
 
   draw(g: CanvasRenderingContext2D, x: number, y: number) {
-    g.fillStyle = this.keyConf.getColor();
+    this.keyConf.setColor(g);
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   moveHorizontal(dx: number) {
-    remove(new RemoveLock2());
+    this.keyConf.removeLock();
     moveToTile(playerx + dx, playery);
   }
   moveVertical(dy: number) {
@@ -305,6 +335,9 @@ class LockX implements Tile {
   rest(): void { }
   update(x: number, y: number): void {
     // Lock1 tiles do not need to be updated.
+  }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
   }
 }
 class Key2 implements Tile {
@@ -333,6 +366,9 @@ class Key2 implements Tile {
   update(x: number, y: number): void {
     // Key2 tiles do not need to be updated.
   }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
+  }
 }
 class Lock2 implements Tile {
   isAir() { return false; }
@@ -355,6 +391,9 @@ class Lock2 implements Tile {
   rest(): void { }
   update(x: number, y: number): void {
     // Lock2 tiles do not need to be updated.
+  }
+  getBlockOnTopState(): FallingState {
+    return new Resting();
   }
 }
 
@@ -404,8 +443,8 @@ let rawMap: RawTile[][] = [
   [2, 4, 1, 1, 1, 9, 0, 2],
   [2, 2, 2, 2, 2, 2, 2, 2],
 ];
+const YELLOW_KEY = new KeyConfiguration("#00ff00", true, new RemoveLock1());
 let map: Tile[][] = rawMap.map(row => row.map(tile => {
-  const YELLOW_KEY = new KeyConfiguration("#00ff00", true, new RemoveLock1());
   switch (tile) {
     case RawTile.AIR: return new Air();
     case RawTile.FLUX: return new Flux();
