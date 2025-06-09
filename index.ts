@@ -48,14 +48,7 @@ class FallStrategy {
 
   update(tile: Tile, x: number, y: number): void {
     this.falling = map[y + 1][x].getBlockOnTopState();
-    this.falling.drop(tile, y, x);
-  }
-
-  private drop(tile: Tile, y: number, x: number) {
-    if (this.falling.isFalling()) {
-      map[y + 1][x] = tile;
-      map[y][x] = new Air();
-    }
+    this.falling.drop(tile, x, y);
   }
 
   moveHorizontal(tile: Tile, dx: number) {
