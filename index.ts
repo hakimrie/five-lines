@@ -128,7 +128,6 @@ interface Tile {
   getBlockOnTopState(): FallingState;
 
   drop(): void;
-  rest(): void;
 
   update(x: number, y: number): void;
 }
@@ -153,7 +152,6 @@ class Air implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
 
   update(x: number, y: number): void {
     // Air tiles do not need to be updated.
@@ -182,7 +180,6 @@ class Flux implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Flux tiles do not need to be updated.
   }
@@ -206,7 +203,6 @@ class Unbreakable implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Unbreakable tiles do not need to be updated.
   }
@@ -228,7 +224,6 @@ class PlayerTile implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Player tiles do not need to be updated.
   }
@@ -265,9 +260,6 @@ class Stone implements Tile {
   drop(): void { 
     this.falling = new Falling();
   }
-  rest(): void { 
-    this.falling = new Resting();
-  }
   update(x: number, y: number): void {
     this.fallStrategy.update(this, x, y);
   }
@@ -300,9 +292,6 @@ class Box implements Tile {
   }
   drop(): void { 
     this.falling = new Falling();
-  }
-  rest(): void { 
-    this.falling = new Resting();
   }
 
   update(x: number, y: number): void {
@@ -338,7 +327,6 @@ class Key implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Key1 tiles do not need to be updated.
   }
@@ -369,7 +357,6 @@ class LockX implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Lock1 tiles do not need to be updated.
   }
@@ -399,7 +386,6 @@ class Key2 implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Key2 tiles do not need to be updated.
   }
@@ -425,7 +411,6 @@ class Lock2 implements Tile {
     return false;
   }
   drop(): void { }
-  rest(): void { }
   update(x: number, y: number): void {
     // Lock2 tiles do not need to be updated.
   }
