@@ -48,7 +48,7 @@ class FallStrategy {
 
   update(tile: Tile, x: number, y: number): void {
     this.falling = map[y + 1][x].getBlockOnTopState();
-    this.drop(tile, y, x);
+    this.falling.drop(tile, y, x);
   }
 
   private drop(tile: Tile, y: number, x: number) {
@@ -127,8 +127,6 @@ interface Tile {
   canFall(): boolean;
   getBlockOnTopState(): FallingState;
 
-  drop(): void;
-
   update(x: number, y: number): void;
 }
 
@@ -151,7 +149,6 @@ class Air implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
 
   update(x: number, y: number): void {
     // Air tiles do not need to be updated.
@@ -179,7 +176,6 @@ class Flux implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Flux tiles do not need to be updated.
   }
@@ -202,7 +198,6 @@ class Unbreakable implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Unbreakable tiles do not need to be updated.
   }
@@ -223,7 +218,6 @@ class PlayerTile implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Player tiles do not need to be updated.
   }
@@ -249,16 +243,13 @@ class Stone implements Tile {
     g.fillStyle = "#0000cc";
     g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
-  moveHorizontal(plyaer: Player, dx: number) {
+  moveHorizontal(player: Player, dx: number) {
     this.fallStrategy.moveHorizontal(this, dx);
   }
-  moveVertical(plyaer: Player, dy: number) {
+  moveVertical(player: Player, dy: number) {
   }
   canFall(): boolean {
     return true;
-  }
-  drop(): void { 
-    this.falling = new Falling();
   }
   update(x: number, y: number): void {
     this.fallStrategy.update(this, x, y);
@@ -289,9 +280,6 @@ class Box implements Tile {
   }
   canFall(): boolean {
     return true;
-  }
-  drop(): void { 
-    this.falling = new Falling();
   }
 
   update(x: number, y: number): void {
@@ -326,7 +314,6 @@ class Key implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Key1 tiles do not need to be updated.
   }
@@ -356,7 +343,6 @@ class LockX implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Lock1 tiles do not need to be updated.
   }
@@ -385,7 +371,6 @@ class Key2 implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Key2 tiles do not need to be updated.
   }
@@ -410,7 +395,6 @@ class Lock2 implements Tile {
   canFall(): boolean {
     return false;
   }
-  drop(): void { }
   update(x: number, y: number): void {
     // Lock2 tiles do not need to be updated.
   }
@@ -425,22 +409,22 @@ interface Input {
 
 class Right implements Input {
   handle(player: Player) {
-    moveHorizontal(1);
+    player.moveHorizontal(1);
   }
 }
 class Left implements Input {
-  handle() {
-    moveHorizontal(-1);
+  handle(player: Player) {
+    player.moveHorizontal(-1);
   }
 }
 class Up implements Input {
-  handle() {
-    moveVertical(-1);
+  handle(player: Player) {
+    player.moveVertical(-1);
   }
 }
 class Down implements Input {
-  handle() {
-    moveVertical(1);
+  handle(player: Player) {
+    player.moveVertical(1);
   }
 } 
 
